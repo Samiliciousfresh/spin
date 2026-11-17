@@ -942,8 +942,11 @@ function wireArm() {
     g.addEventListener('pointermove', e => { if (armDrag) armMove(e); });
     g.addEventListener('pointerup', armUp);
     g.addEventListener('pointercancel', armUp);
+    g.addEventListener('lostpointercapture', armUp);
     g.addEventListener('click', e => e.stopPropagation());
   }
+  window.addEventListener('pointerup', armUp);
+  window.addEventListener('blur', armUp);
 }
 wireArm();
 
