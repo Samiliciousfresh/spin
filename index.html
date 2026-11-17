@@ -53,7 +53,7 @@ button{font:inherit;color:inherit}
 .record{position:absolute;left:0;top:0;width:var(--S);height:var(--S);border-radius:50%;
   box-shadow:0 calc(var(--S)*.08) calc(var(--S)*.16) calc(var(--S)*-.04) rgba(0,0,0,.75),0 0 0 1px rgba(0,0,0,.7)}
 .disc{position:absolute;inset:0;border-radius:50%;
-  animation:spin var(--rev) linear infinite;animation-play-state:paused;
+  will-change:transform;
   background:
     conic-gradient(from 0deg, rgba(255,255,255,.025), rgba(255,255,255,0) 28%, rgba(255,255,255,.03) 52%, rgba(255,255,255,0) 78%, rgba(255,255,255,.025)),
     radial-gradient(circle closest-side, transparent 0 39.5%, rgba(255,255,255,.07) 40% 40.6%, transparent 41.2%),
@@ -63,7 +63,8 @@ button{font:inherit;color:inherit}
     radial-gradient(circle closest-side, transparent 0 96.4%, rgba(255,255,255,.06) 96.8% 97.4%, #050506 97.8%),
     repeating-radial-gradient(circle closest-side, #0c0c0e 0 1px, #19191c 1.5px 2px, #0c0c0e 2.6px),
     #0c0c0e}
-body.playing .disc{animation-play-state:running}
+body.mini .disc{animation:spin var(--rev) linear infinite;animation-play-state:paused}
+body.mini.playing .disc{animation-play-state:running}
 @keyframes spin{to{transform:rotate(360deg)}}
 .label{position:absolute;inset:31.5%;border-radius:50%;overflow:hidden;background:#2a2622;
   box-shadow:0 0 0 calc(var(--S)*.004) rgba(0,0,0,.7),0 0 calc(var(--S)*.02) rgba(0,0,0,.6)}
@@ -81,11 +82,21 @@ body.playing .disc{animation-play-state:running}
   background:radial-gradient(circle at 35% 32%, #fff, #a3a3a8 38%, #3b3b40 75%, #18181b);
   box-shadow:0 1px 3px rgba(0,0,0,.9)}
 
-/* ---------- tonearm ---------- */
-.arm{position:absolute;left:calc(var(--S)*1.0);top:calc(var(--S)*-.08);width:calc(var(--S)*.24);height:calc(var(--S)*.84);
-  transform-origin:50% 19.05%;transform:rotate(var(--arm));transition:transform 1.4s cubic-bezier(.45,.05,.2,1);
-  overflow:visible;pointer-events:none}
-body.no-arm .arm{display:none}
+/* ---------- tonearm (pivot sits at 1.12S, 0.08S; 1 svg unit = S/250) ---------- */
+.arm-base,.arm-wrap{position:absolute;left:calc(var(--S)*.96);top:calc(var(--S)*-.18);width:calc(var(--S)*.32);height:calc(var(--S)*.86);overflow:visible;pointer-events:none}
+.arm-base svg,.arm svg{width:100%;height:100%;overflow:visible;display:block}
+.arm-wrap{filter:drop-shadow(calc(var(--S)*.012) calc(var(--S)*.022) calc(var(--S)*.014) rgba(0,0,0,.55));transition:filter .35s ease}
+.arm{position:absolute;inset:0;transform-origin:50% 20.93%;transform:rotate(var(--arm));transition:transform 1.4s cubic-bezier(.45,.05,.2,1)}
+.arm .grab{pointer-events:stroke;cursor:grab;touch-action:none}
+.arm .grab-head{pointer-events:all;cursor:grab;touch-action:none}
+body.connector .arm .grab,body.connector .arm .grab-head{pointer-events:none}
+body.arm-drag .arm{transition:transform .06s linear}
+body.arm-drag .arm-wrap{filter:drop-shadow(calc(var(--S)*.03) calc(var(--S)*.05) calc(var(--S)*.03) rgba(0,0,0,.45))}
+body.arm-drag,body.arm-drag .arm .grab,body.arm-drag .arm .grab-head{cursor:grabbing}
+.needle-tip{position:absolute;z-index:4;pointer-events:none;transform:translate(-50%,-160%);padding:.35em .65em;border-radius:8px;font-size:.78rem;font-weight:600;
+  font-variant-numeric:tabular-nums;background:rgba(15,15,17,.85);border:1px solid rgba(255,255,255,.14);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);opacity:0;transition:opacity .2s}
+body.arm-drag .needle-tip.show{opacity:1}
+body.no-arm .arm-base,body.no-arm .arm-wrap{display:none}
 
 /* ---------- song info ---------- */
 .info{width:min(32rem,34vw);flex:none}
@@ -106,6 +117,28 @@ body.playing .eq i{animation:eq 1s ease-in-out infinite}
 .times{display:flex;justify-content:space-between;margin-top:.6rem;font-size:.75rem;font-weight:500;font-variant-numeric:tabular-nums;color:rgba(255,255,255,.5)}
 body.no-info .info{display:none}
 body.no-info{--S: min(80vh, 62vw)}
+
+/* ---------- lyrics ---------- */
+.lyrics{display:none;position:relative;height:min(40vh,22rem);margin-top:clamp(1.2rem,3vh,2rem);overflow:hidden;
+  -webkit-mask-image:linear-gradient(to bottom,transparent,#000 22%,#000 70%,transparent);mask-image:linear-gradient(to bottom,transparent,#000 22%,#000 70%,transparent)}
+body.lyrics-on.has-lyrics .lyrics{display:block}
+.lyrics-track{position:absolute;left:0;right:0;top:0;transition:transform .95s cubic-bezier(.22,.8,.25,1);will-change:transform}
+.ly{font-weight:700;font-size:clamp(1.25rem,2.1vw,2.05rem);line-height:1.22;letter-spacing:-.01em;margin:0 0 .55em;color:#fff;
+  transform-origin:left center;opacity:.14;filter:blur(5px);transform:scale(.94);
+  transition:opacity .75s ease,filter .75s ease,transform .75s cubic-bezier(.22,.8,.25,1),text-shadow .75s ease;text-wrap:balance}
+.ly[data-d="1"]{opacity:.5;filter:blur(1.3px);transform:scale(.965)}
+.ly[data-d="2"]{opacity:.28;filter:blur(2.6px);transform:scale(.955)}
+.ly[data-d="3"]{opacity:.16;filter:blur(4px)}
+.ly[data-d="5"]{opacity:0;filter:none}
+.ly.on{opacity:1;filter:none;transform:none;text-shadow:0 0 28px color-mix(in srgb,var(--accent) 45%,transparent)}
+.ly.gap{font-size:1.3rem;letter-spacing:.4em}
+.lyrics-msg{display:none;margin-top:1.4rem;font-size:.8rem;letter-spacing:.06em;color:rgba(255,255,255,.4)}
+body.lyrics-on.no-lyrics .lyrics-msg{display:block}
+body.lyrics-on.has-lyrics .album{display:none}
+body.lyrics-on.has-lyrics .title{font-size:clamp(1.7rem,3vw,2.9rem);-webkit-line-clamp:2}
+body.lyrics-on.has-lyrics .progress{margin-top:1rem}
+.controls [data-act="lyrics"].on{color:var(--accent)}
+body.connector .controls [data-act="lyrics"]{display:none}
 
 /* ---------- connector mode (Claude's Spotify connector) ---------- */
 body.connector .progress{display:none}
@@ -189,6 +222,10 @@ body.playing .play .i-play{display:none}
   .eyebrow{justify-content:center}
   .title{font-size:clamp(2rem,8vw,3.6rem)}
   .clock{left:50%;transform:translateX(-50%);text-align:center}
+  .lyrics{height:min(24vh,15rem)}
+  .ly{transform-origin:center;font-size:clamp(1.1rem,4.6vw,1.8rem)}
+  body.lyrics-on.has-lyrics{--S: min(56vw, 34vh)}
+  body.lyrics-on.has-lyrics .scene{gap:clamp(1rem,3vh,2rem)}
   .clock b{font-size:2rem}
 }
 @media (max-height:520px) and (orientation:landscape){
@@ -231,6 +268,8 @@ body.mini .bg-layer{filter:blur(30px) saturate(1.4) brightness(.45);animation:no
       <div class="bar"><i id="bar"></i></div>
       <div class="times"><span id="pos">0:00</span><span id="dur">0:00</span></div>
     </div>
+    <div class="lyrics" id="lyrics"><div class="lyrics-track" id="lyrics-track"></div></div>
+    <div class="lyrics-msg" id="lyrics-msg"></div>
   </section>
 </main>
 
@@ -240,6 +279,7 @@ body.mini .bg-layer{filter:blur(30px) saturate(1.4) brightness(.45);animation:no
   <button data-act="next" title="Next (→)" aria-label="Next"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg></button>
   <span class="sep"></span>
   <button data-act="mini" title="Mini floating vinyl (M)" aria-label="Mini player"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><circle cx="16" cy="13" r="3.2"/><circle cx="16" cy="13" r=".6" fill="currentColor"/></svg></button>
+  <button data-act="lyrics" title="Lyrics (L)" aria-label="Lyrics"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 6h11M4 10h8M4 14h6"/><path d="M17 17.5V8l4-1"/><circle cx="15" cy="17.5" r="2"/></svg></button>
   <button data-act="fullscreen" title="Full screen (F)" aria-label="Full screen"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/></svg></button>
   <button data-act="settings" title="Settings" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg></button>
 </nav>
@@ -268,6 +308,7 @@ body.mini .bg-layer{filter:blur(30px) saturate(1.4) brightness(.45);animation:no
     <div class="hr"></div>
     <div class="row"><span>Speed</span><div class="seg" id="speed"><button data-v="33">33⅓</button><button data-v="45">45</button><button data-v="slow">Slow</button></div></div>
     <div class="row"><span>Show song info</span><button class="switch" data-set="info" aria-label="Show song info"></button></div>
+    <div class="row"><span>Show lyrics</span><button class="switch" data-set="lyrics" aria-label="Show lyrics"></button></div>
     <div class="row"><span>Show tonearm</span><button class="switch" data-set="arm" aria-label="Show tonearm"></button></div>
     <div class="row"><span>Show clock</span><button class="switch" data-set="clock" aria-label="Show clock"></button></div>
     <div class="actions">
@@ -309,26 +350,46 @@ const RECORD_HTML = `
   <div class="sheen"></div>
   <div class="spindle"></div>
 </div>`;
+const ARM_DEFS = `
+    <linearGradient id="metal" x1="0" x2="1"><stop offset="0" stop-color="#4f4f55"/><stop offset=".38" stop-color="#d9d9de"/><stop offset=".52" stop-color="#ffffff"/><stop offset="1" stop-color="#5c5c63"/></linearGradient>
+    <linearGradient id="metalV" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f2f2f5"/><stop offset="1" stop-color="#6a6a72"/></linearGradient>
+    <linearGradient id="weight" x1="0" x2="1"><stop offset="0" stop-color="#1b1b1e"/><stop offset=".45" stop-color="#5a5a62"/><stop offset=".6" stop-color="#2c2c31"/><stop offset="1" stop-color="#121214"/></linearGradient>
+    <radialGradient id="dome" cx=".35" cy=".3" r=".75"><stop offset="0" stop-color="#ffffff"/><stop offset=".35" stop-color="#b9b9c0"/><stop offset="1" stop-color="#2b2b30"/></radialGradient>
+    <radialGradient id="plinth" cx=".4" cy=".35" r=".8"><stop offset="0" stop-color="#2e2e33"/><stop offset="1" stop-color="#0d0d0f"/></radialGradient>`;
+/* fixed parts: base plinth with bearing ring, anti-skate dial, arm-rest post */
+const ARM_BASE_SVG = `
+<div class="arm-base" aria-hidden="true"><svg viewBox="-40 -45 80 215"><defs>${ARM_DEFS}</defs>
+  <ellipse cx="3" cy="6" rx="31" ry="30" fill="rgba(0,0,0,.45)" style="filter:blur(3px)"/>
+  <circle r="28" fill="url(#plinth)" stroke="rgba(255,255,255,.08)" stroke-width="1"/>
+  <circle r="21" fill="none" stroke="url(#metal)" stroke-width="2.2"/>
+  <circle r="17.5" fill="#0b0b0d"/>
+  <g transform="translate(22 30)"><circle r="6.5" fill="#141417" stroke="url(#metal)" stroke-width="1.2"/><line x1="0" y1="0" x2="0" y2="-4.6" stroke="#e8e8ec" stroke-width="1.2" stroke-linecap="round" transform="rotate(35)"/></g>
+  <g transform="translate(4 100)"><circle r="7.5" fill="rgba(0,0,0,.5)" transform="translate(1.5 2)"/><circle r="7" fill="#151518" stroke="url(#metal)" stroke-width="1.2"/>
+    <path d="M-5,-2 Q-5,3 0,3 Q5,3 5,-2" fill="none" stroke="#2a2a2e" stroke-width="2.4" stroke-linecap="round"/></g>
+</svg></div>`;
+/* moving parts: counterweight, gimbal, J-tube, headshell with cartridge (stripe takes the album colour) */
 const ARM_SVG = `
-<svg class="arm" viewBox="-30 -40 60 210" aria-hidden="true">
-  <defs>
-    <linearGradient id="metal" x1="0" x2="1"><stop offset="0" stop-color="#5d5d63"/><stop offset=".45" stop-color="#f4f4f6"/><stop offset="1" stop-color="#6d6d73"/></linearGradient>
-    <radialGradient id="knob" cx=".35" cy=".35"><stop offset="0" stop-color="#fff"/><stop offset=".5" stop-color="#9a9aa0"/><stop offset="1" stop-color="#26262a"/></radialGradient>
-    <filter id="armShadow" x="-50%" y="-20%" width="200%" height="140%"><feDropShadow dx="3" dy="6" stdDeviation="2.6" flood-opacity=".6"/></filter>
-  </defs>
-  <g filter="url(#armShadow)">
-    <rect x="-8.5" y="-37" width="17" height="22" rx="4" fill="url(#metal)"/>
-    <rect x="-3.5" y="-18" width="7" height="4" fill="#2a2a2e"/>
-    <rect x="-2" y="-15" width="4" height="150" rx="2" fill="url(#metal)"/>
-    <circle r="13" fill="#18181b" stroke="url(#metal)" stroke-width="3"/>
-    <circle r="5.5" fill="url(#knob)"/>
-    <g transform="translate(0,131) rotate(18)">
-      <rect x="-6.5" y="0" width="13" height="25" rx="2.5" fill="#1c1c1f" stroke="url(#metal)" stroke-width="1.5"/>
-      <rect x="6" y="3" width="7" height="2.2" rx="1" fill="url(#metal)"/>
-      <rect x="-2" y="21" width="4" height="5" rx="1" fill="#d9b25c"/>
-    </g>
+<div class="arm-wrap" aria-hidden="true"><div class="arm"><svg viewBox="-40 -45 80 215"><defs>${ARM_DEFS}</defs>
+  <rect x="-10.5" y="-42" width="21" height="25" rx="3.5" fill="url(#weight)"/>
+  <g stroke="rgba(0,0,0,.45)" stroke-width=".8"><line x1="-10" y1="-35" x2="10" y2="-35"/><line x1="-10" y1="-29.5" x2="10" y2="-29.5"/><line x1="-10" y1="-24" x2="10" y2="-24"/></g>
+  <rect x="-10.5" y="-42" width="21" height="2.2" rx="1" fill="rgba(255,255,255,.22)"/>
+  <rect x="-2.6" y="-18" width="5.2" height="10" fill="url(#metal)"/>
+  <path d="M0,6 L0,110 Q0,124 -5,132" fill="none" stroke="url(#metal)" stroke-width="6.2" stroke-linecap="round"/>
+  <path d="M-1.3,8 L-1.3,110" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="1" stroke-linecap="round"/>
+  <circle r="12.5" fill="#141417" stroke="url(#metal)" stroke-width="2.4"/>
+  <circle r="7" fill="url(#dome)"/>
+  <rect x="-15" y="-3" width="4" height="6" rx="1.2" fill="url(#metalV)"/><rect x="11" y="-3" width="4" height="6" rx="1.2" fill="url(#metalV)"/>
+  <g transform="translate(-5 132) rotate(22)">
+    <path d="M7.5,3 C13,2.4 17,0 19.5,-4.5" fill="none" stroke="url(#metal)" stroke-width="2.3" stroke-linecap="round"/>
+    <path d="M-8,0 L8,0 L7,21 L-7,21 Z" fill="#1a1a1d" stroke="url(#metal)" stroke-width="1"/>
+    <rect x="-6" y="12" width="12" height="10" rx="1.6" fill="#0d0d0f"/>
+    <rect x="-6" y="12" width="12" height="2.2" rx="1" style="fill:var(--accent)"/>
+    <path d="M-1.4,22 L1.4,22 L0,25.5 Z" fill="#e2bf6a"/>
   </g>
-</svg>`;
+  <path class="grab" d="M0,-40 L0,110 Q0,124 -5,132" fill="none" stroke="transparent" stroke-width="26" stroke-linecap="round"/>
+  <circle class="grab-head" cx="-12" cy="146" r="16" fill="transparent"/>
+</svg></div></div>
+<div class="needle-tip" id="needle-tip"></div>`;
 const ICONS = {
   prev: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg>',
   next: '<svg viewBox="0 0 24 24" fill="currentColor"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg>',
@@ -336,7 +397,7 @@ const ICONS = {
 };
 
 /* ================= state ================= */
-const settings = Object.assign({ info: true, arm: true, clock: true, speed: '33' }, store.get('settings', {}));
+const settings = Object.assign({ info: true, arm: true, clock: true, speed: '33', lyrics: true }, store.get('settings', {}));
 const st = {
   mode: 'none',          // 'spotify' | 'demo' | 'none'
   track: null,           // {id,title,artist,album,art,duration}
@@ -348,7 +409,7 @@ let mini = null;         // {kind:'doc'|'video', win, doc, ...}
 let bgFlip = false;
 
 /* ================= DOM bootstrapping ================= */
-$('#stage').innerHTML = RECORD_HTML + ARM_SVG;
+$('#stage').innerHTML = RECORD_HTML + ARM_BASE_SVG + ARM_SVG;
 $('#redirect-uri').textContent = REDIRECT_URI;
 
 const docs = () => (mini && mini.doc ? [document, mini.doc] : [document]);
@@ -361,7 +422,9 @@ function applySettings() {
   setFlag('no-arm', !settings.arm);
   setFlag('no-clock', !settings.clock);
   const rev = settings.speed === '45' ? (60 / 45) : settings.speed === 'slow' ? 9 : (60 / 33.333);
-  setVar('--rev', rev.toFixed(3) + 's');
+  setVar('--rev', rev.toFixed(3) + 's'); st.rev = rev;
+  setFlag('lyrics-on', settings.lyrics);
+  for (const b of $$('[data-act="lyrics"]')) b.classList.toggle('on', !!settings.lyrics);
   for (const b of $$('#speed button')) b.classList.toggle('on', b.dataset.v === settings.speed);
   for (const b of $$('[data-set]')) b.classList.toggle('on', !!settings[b.dataset.set]);
   store.set('settings', settings);
@@ -488,12 +551,12 @@ function setTrack(t) {
     bindText('artist', live ? 'Play a song on Spotify and it will appear here' : '');
     bindText('album', '');
     bindText('status', live ? 'Waiting for Spotify' : 'Not connected');
-    if (changed) showArt(null);
+    if (changed) { showArt(null); loadLyrics(null); }
     document.title = 'Spin';
     return;
   }
   bindText('title', t.title); bindText('artist', t.artist); bindText('album', t.album || '');
-  if (changed) { showArt(t.art, t); document.title = `${t.title} · ${t.artist}`; }
+  if (changed) { showArt(t.art, t); loadLyrics(t); document.title = `${t.title} · ${t.artist}`; }
 }
 function setPlaying(on) {
   st.playing = !!on;
@@ -509,13 +572,28 @@ function currentProgress() {
 }
 
 /* ================= render loop ================= */
+/* tonearm geometry: angle 0 = resting on the post; the needle meets the outer groove at ARM_IN
+   and the run-out groove at ARM_OUT; below ARM_ON it is off the record */
+const ARM_REST = 0, ARM_ON = 10, ARM_IN = 14, ARM_OUT = 31;
 let lastArm = '';
+const spin = { a: 0, v: 0, last: performance.now() };
+const discEl = $('#stage .disc');
 function frame() {
+  const now = performance.now(), dt = Math.min(.1, (now - spin.last) / 1000); spin.last = now;
   const dur = st.track ? st.track.duration : 0, p = currentProgress();
   $('#bar').style.width = dur ? (p / dur * 100).toFixed(3) + '%' : '0%';
   $('#pos').textContent = fmt(p); $('#dur').textContent = fmt(dur);
-  const arm = st.playing && st.track ? (27 + 9 * (dur ? p / dur : 0)).toFixed(1) + 'deg' : '8deg';
-  if (arm !== lastArm) { lastArm = arm; setVar('--arm', arm); }
+  // platter spins up and coasts down like a real turntable
+  const target = st.playing ? 360 / (st.rev || 1.8) : 0;
+  spin.v += (target - spin.v) * (1 - Math.exp(-dt / (target ? .55 : .8)));
+  if (Math.abs(spin.v) < .05 && !target) spin.v = 0;
+  spin.a = (spin.a + spin.v * dt) % 360;
+  discEl.style.transform = `rotate(${spin.a.toFixed(2)}deg)`;
+  if (!armDrag) {
+    const arm = st.playing && st.track ? (ARM_IN + (ARM_OUT - ARM_IN) * (dur ? p / dur : 0)).toFixed(1) + 'deg' : ARM_REST + 'deg';
+    if (arm !== lastArm) { lastArm = arm; setVar('--arm', arm); }
+  }
+  lyricsTick(p);
   if (st.mode === 'demo') demoTick(p);
   requestAnimationFrame(frame);
 }
@@ -620,6 +698,7 @@ function applyPlayback(j) {
     title: it.name,
     artist: ep ? (it.show && it.show.name) || 'Podcast' : (it.artists || []).map(a => a.name).join(', '),
     album: ep ? (it.show && it.show.publisher) || '' : (it.album && it.album.name) || '',
+    artists: ep ? [] : (it.artists || []).map(a => a.name), albumName: ep ? '' : (it.album && it.album.name) || '', podcast: ep,
     art: pickImage(ep ? ((it.images && it.images.length) ? it.images : it.show && it.show.images) : it.album && it.album.images),
     duration: it.duration_ms || 0
   });
@@ -628,10 +707,21 @@ function applyPlayback(j) {
 }
 
 /* ================= controls ================= */
-async function control(act) {
+async function control(act, arg) {
   if (act === 'toggle') act = st.playing ? 'pause' : 'play';
   if (st.mode === 'claude') return;
-  if (st.mode === 'demo') return demoControl(act);
+  if (st.mode === 'demo') return demoControl(act, arg);
+  if (act === 'seek') {                                   // needle dropped: jump there and play
+    if (st.mode !== 'spotify') return;
+    setProgress(arg); const wasPlaying = st.playing; setPlaying(true);
+    try {
+      let r = await api('PUT', '/me/player/seek?position_ms=' + Math.round(arg));
+      if (r.ok && !wasPlaying) r = await api('PUT', '/me/player/play');
+      if (r.status === 404) toast('Open Spotify on one of your devices first');
+      else if (r.status === 403) toast('Spotify only allows seeking from apps on Premium accounts');
+    } catch { toast('Could not reach Spotify'); }
+    schedule(900); return;
+  }
   if (st.mode !== 'spotify') { openSheet(); return; }
   const map = { play: ['PUT', '/me/player/play'], pause: ['PUT', '/me/player/pause'], next: ['POST', '/me/player/next'], prev: ['POST', '/me/player/previous'] };
   if (act === 'play' || act === 'pause') { setProgress(currentProgress()); setPlaying(act === 'play'); }
@@ -646,7 +736,8 @@ async function control(act) {
 function wireControls(root) {
   for (const b of $$('[data-act]', root)) b.addEventListener('click', e => {
     e.stopPropagation(); const a = b.dataset.act;
-    if (a === 'mini') toggleMini(); else if (a === 'fullscreen') toggleFullscreen(); else if (a === 'settings') openSheet(); else control(a);
+    if (a === 'lyrics') { settings.lyrics = !settings.lyrics; applySettings(); if (settings.lyrics) loadLyrics(st.track); else layoutLyrics(); }
+    else if (a === 'mini') toggleMini(); else if (a === 'fullscreen') toggleFullscreen(); else if (a === 'settings') openSheet(); else control(a);
   });
 }
 wireControls(document);
@@ -718,6 +809,144 @@ async function startConnector() {
   }, 8000);
 }
 
+/* ================= synced lyrics (LRCLIB) ================= */
+const lyr = { forId: null, lines: null, els: [], idx: -2, cache: new Map() };
+const cleanTitle = s => s.replace(/\s*[\(\[](feat|ft|with|prod)\.?[^\)\]]*[\)\]]/ig, '').replace(/\s+-\s+.*(remaster|version|edit|mix|live|mono|stereo|from).*$/i, '').trim();
+function parseLrc(text) {
+  const out = [];
+  for (const raw of String(text).split(/\r?\n/)) {
+    const stamps = [...raw.matchAll(/\[(\d+):(\d+(?:[.:]\d+)?)\]/g)];
+    if (!stamps.length) continue;
+    const words = raw.replace(/\[[^\]]*\]/g, '').trim();
+    for (const m of stamps) out.push({ t: (+m[1] * 60 + parseFloat(m[2].replace(':', '.'))) * 1000, text: words });
+  }
+  out.sort((a, b) => a.t - b.t);
+  // collapse runs of empty lines into one instrumental gap
+  return out.filter((l, i) => l.text || (i > 0 && out[i - 1].text));
+}
+async function findLyrics(t) {
+  if (t.podcast) return null;
+  const artist = (t.artists && t.artists[0]) || (t.artist || '').split(',')[0].trim();
+  const dur = Math.round((t.duration || 0) / 1000), API = 'https://lrclib.net/api/';
+  try {
+    const r = await fetch(API + 'get?' + new URLSearchParams({ track_name: t.title, artist_name: artist, album_name: t.albumName || t.album || '', duration: dur }));
+    if (r.ok) { const j = await r.json(); if (j.syncedLyrics) return j.syncedLyrics; if (j.instrumental) return ''; }
+  } catch {}
+  const clean = cleanTitle(t.title);
+  for (const params of [{ track_name: clean, artist_name: artist }, { q: clean + ' ' + artist }]) {
+    try {
+      const r = await fetch(API + 'search?' + new URLSearchParams(params)); if (!r.ok) continue;
+      const best = (await r.json()).filter(x => x.syncedLyrics).sort((a, b) => Math.abs(a.duration - dur) - Math.abs(b.duration - dur))[0];
+      if (best && (!dur || Math.abs(best.duration - dur) <= 8)) return best.syncedLyrics;
+    } catch {}
+  }
+  return null;
+}
+async function loadLyrics(t) {
+  lyr.forId = t ? t.id : null;
+  renderLyrics(null, '');
+  if (!t || !settings.lyrics || st.mode === 'claude') return;
+  let res = t.lrc !== undefined ? t.lrc : lyr.cache.get(t.id);
+  if (res === undefined) {
+    bindText('lyricsmsg', '');
+    res = await findLyrics(t).catch(() => null);
+    lyr.cache.set(t.id, res);
+  }
+  if (lyr.forId !== t.id) return;
+  const lines = res ? parseLrc(res) : null;
+  renderLyrics(lines && lines.length ? lines : null, res === '' ? 'Instrumental' : 'No synced lyrics for this song');
+}
+function renderLyrics(lines, msg) {
+  const box = $('#lyrics-track'); box.textContent = ''; box.style.transform = 'translateY(0)';
+  lyr.lines = lines; lyr.els = []; lyr.idx = -2;
+  setFlag('has-lyrics', !!lines); setFlag('no-lyrics', !lines && !!msg);
+  $('#lyrics-msg').textContent = msg || '';
+  if (!lines) return;
+  for (const l of lines) {
+    const el = document.createElement('div');
+    el.className = 'ly' + (l.text ? '' : ' gap'); el.textContent = l.text || '• • •';
+    box.append(el); lyr.els.push(el);
+  }
+  lyricsTick(currentProgress(), true);
+}
+function lyricsTick(p, force) {
+  if (!lyr.lines || !settings.lyrics) return;
+  const t = p + 350;                               // show each line a touch early so it lands on the beat
+  let lo = 0, hi = lyr.lines.length - 1, idx = -1;
+  while (lo <= hi) { const m = (lo + hi) >> 1; if (lyr.lines[m].t <= t) { idx = m; lo = m + 1; } else hi = m - 1; }
+  if (idx === lyr.idx && !force) return;
+  lyr.idx = idx; layoutLyrics();
+}
+function layoutLyrics() {
+  if (!lyr.lines || !lyr.els.length) return;
+  const idx = lyr.idx, focus = Math.max(0, idx);
+  lyr.els.forEach((el, i) => {
+    const d = Math.min(5, Math.abs(i - focus) + (idx < 0 ? 1 : 0));
+    el.dataset.d = d; el.classList.toggle('on', d === 0);
+  });
+  const box = $('#lyrics'), el = lyr.els[focus];
+  if (!box.offsetHeight) return;
+  const y = el.offsetTop + el.offsetHeight / 2 - box.offsetHeight * .42;
+  $('#lyrics-track').style.transform = `translateY(${(-y).toFixed(1)}px)`;
+}
+window.addEventListener('resize', () => layoutLyrics());
+
+/* ================= grab the tonearm ================= */
+let armDrag = null;
+function pivotPoint() {
+  const r = $('#stage').getBoundingClientRect();
+  return [r.left + r.height * 1.12, r.top + r.height * .08, r.height];
+}
+function armAngleAt(x, y) {
+  const [px, py] = pivotPoint();
+  return clamp(Math.atan2(-(x - px), y - py) * 180 / Math.PI, -3, 34);
+}
+function needlePos(theta) {
+  const [px, py, S] = pivotPoint(), a = (theta + 5.2) * Math.PI / 180, L = S * .62;
+  return [px - Math.sin(a) * L, py + Math.cos(a) * L];
+}
+function armDropTime(theta) {
+  const dur = st.track ? st.track.duration : 0;
+  return dur ? clamp((theta - ARM_IN) / (ARM_OUT - ARM_IN), 0, 1) * dur : 0;
+}
+function armMove(e) {
+  const th = armAngleAt(e.clientX, e.clientY); armDrag.theta = th; armDrag.moved = true;
+  setVar('--arm', th.toFixed(2) + 'deg'); lastArm = '';
+  const tip = $('#needle-tip'), [nx, ny] = needlePos(th);
+  tip.style.left = nx + 'px'; tip.style.top = ny + 'px'; tip.style.position = 'fixed';
+  const on = th >= ARM_ON && st.track;
+  tip.textContent = on ? (th < ARM_IN ? 'Start' : fmt(armDropTime(th))) : (st.playing ? 'Lift to pause' : 'Off');
+  tip.classList.add('show');
+}
+function armUp() {
+  if (!armDrag) return;
+  const th = armDrag.theta, moved = armDrag.moved; armDrag = null;
+  setFlag('arm-drag', false); $('#needle-tip').classList.remove('show');
+  if (!moved) { lastArm = ''; return; }
+  if (th < ARM_ON || !st.track) {                  // parked off the record → pause
+    if (st.playing) control('pause');
+    lastArm = ''; setVar('--arm', ARM_REST + 'deg');
+  } else {                                         // dropped on the record → play from there
+    control('seek', armDropTime(th)); lastArm = '';
+  }
+}
+function wireArm() {
+  for (const g of $$('#stage .grab, #stage .grab-head')) {
+    g.addEventListener('pointerdown', e => {
+      if (st.mode === 'claude' || st.mode === 'none') return;
+      e.preventDefault(); e.stopPropagation();
+      try { g.setPointerCapture(e.pointerId); } catch {}
+      armDrag = { theta: armAngleAt(e.clientX, e.clientY), moved: false };
+      setFlag('arm-drag', true);
+    });
+    g.addEventListener('pointermove', e => { if (armDrag) armMove(e); });
+    g.addEventListener('pointerup', armUp);
+    g.addEventListener('pointercancel', armUp);
+    g.addEventListener('click', e => e.stopPropagation());
+  }
+}
+wireArm();
+
 /* ================= demo mode ================= */
 function demoArt(c1, c2, c3, motif) {
   const c = document.createElement('canvas'); c.width = c.height = 512; const x = c.getContext('2d');
@@ -730,12 +959,13 @@ function demoArt(c1, c2, c3, motif) {
   const n = x.getImageData(0, 0, 512, 512); for (let i = 0; i < n.data.length; i += 4) { const v = (Math.random() - .5) * 26; n.data[i] += v; n.data[i + 1] += v; n.data[i + 2] += v; } x.putImageData(n, 0, 0);
   return c.toDataURL('image/jpeg', .88);
 }
+const DEMO_LRC = ["[00:30.00]Neon on the window, static in the air\n[00:34.20]Every station's talking but there's no one there\n[00:38.60]I keep the dial turning just to hear you breathe\n[00:43.00]Somewhere in the hiss between the songs I need\n[00:47.40]\n[00:51.00]Midnight static, hold me in the glow\n[00:55.20]Play it back again, play it soft and slow\n[00:59.60]All the city's sleeping, only we're awake\n[01:04.00]Spinning like a record that we'll never break\n[01:08.40]\n[01:12.00]Paper cups of coffee and a borrowed coat\n[01:16.20]Every word you gave me is a note I wrote\n[01:20.60]If the signal fades, I'll know just where to go\n[01:25.00]Back into the static and the radio\n[01:29.40]\n[01:33.00]Midnight static, hold me in the glow\n[01:37.20]Play it back again, play it soft and slow\n[01:41.60]All the city's sleeping, only we're awake\n[01:46.00]Spinning like a record that we'll never break", "[00:12.00]Morning on the harbour, salt upon the glass\n[00:17.00]Every boat is leaving but I'm letting them pass\n[00:22.00]I planted something quiet where the tide comes in\n[00:27.00]Waiting for the slow bloom to begin\n[00:32.00]\n[00:37.00]Slow bloom, slow bloom\n[00:41.50]Open up the window, let the light in the room\n[00:46.00]No need to hurry, nothing's gonna fade\n[00:50.50]Everything that's growing takes its time to be made"];
 let demoList = null, demoIdx = 0;
 function demoTracks() {
   if (demoList) return demoList;
   demoList = [
-    { id: 'd1', title: 'Midnight Static', artist: 'Velvet Arcade', album: 'Neon Cassette', duration: 204000, art: demoArt('#ff7a59', '#4b1d52', '#ffd27a', 'sun') },
-    { id: 'd2', title: 'Slow Bloom', artist: 'Harbor Lights', album: 'Tidewater', duration: 231000, art: demoArt('#103b52', '#0a1a24', '#7fd1c7', 'waves') },
+    { id: 'd1', lrc: DEMO_LRC[0], title: 'Midnight Static', artist: 'Velvet Arcade', album: 'Neon Cassette', duration: 204000, art: demoArt('#ff7a59', '#4b1d52', '#ffd27a', 'sun') },
+    { id: 'd2', lrc: DEMO_LRC[1], title: 'Slow Bloom', artist: 'Harbor Lights', album: 'Tidewater', duration: 231000, art: demoArt('#103b52', '#0a1a24', '#7fd1c7', 'waves') },
     { id: 'd3', title: 'Paper Moons', artist: 'The Quiet Hours', album: 'Small Hours, Vol. II', duration: 188000, art: demoArt('#e9dcc4', '#c9b08a', '#2e2a26', 'moon') },
     { id: 'd4', title: 'Glass Houses', artist: 'June Avenue', album: 'Reflections', duration: 246000, art: demoArt('#2b1055', '#7597de', '#f6e7ff', 'grid') }
   ];
@@ -746,8 +976,9 @@ function startDemo() {
   const t = demoTracks()[demoIdx]; setTrack(t); setProgress(Math.min(42000, t.duration / 3)); setPlaying(true);
 }
 function demoTick(p) { if (st.playing && st.track && p >= st.track.duration) demoControl('next'); }
-function demoControl(act) {
+function demoControl(act, arg) {
   const L = demoTracks();
+  if (act === 'seek') { setProgress(arg); setPlaying(true); return; }
   if (act === 'play' || act === 'pause') { setProgress(currentProgress()); setPlaying(act === 'play'); return; }
   if (act === 'prev' && currentProgress() > 4000) { setProgress(0); return; }
   demoIdx = (demoIdx + (act === 'prev' ? L.length - 1 : 1)) % L.length;
@@ -875,6 +1106,7 @@ window.addEventListener('keydown', e => {
   else if (e.key === 'ArrowLeft') control('prev');
   else if (e.key === 'f' || e.key === 'F') toggleFullscreen();
   else if (e.key === 'm' || e.key === 'M') toggleMini();
+  else if (e.key === 'l' || e.key === 'L') $('[data-act="lyrics"]').click();
   else if (e.key === 'Escape') closeSheet();
 });
 
@@ -926,7 +1158,7 @@ $('#copy-uri').addEventListener('click', async () => {
 });
 $('#disconnect').addEventListener('click', () => { auth.logout(); st.mode = 'none'; setTrack(null); setPlaying(false); openSheet(); });
 for (const b of $$('#speed button')) b.addEventListener('click', () => { settings.speed = b.dataset.v; applySettings(); syncMini(); });
-for (const b of $$('[data-set]')) b.addEventListener('click', () => { settings[b.dataset.set] = !settings[b.dataset.set]; applySettings(); });
+for (const b of $$('[data-set]')) b.addEventListener('click', () => { settings[b.dataset.set] = !settings[b.dataset.set]; applySettings(); if (b.dataset.set === 'lyrics' && settings.lyrics) loadLyrics(st.track); });
 
 /* keep the mini window in step whenever state changes */
 const _setPlaying = setPlaying, _setTrack = setTrack;
