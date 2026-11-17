@@ -91,6 +91,7 @@ body.mini.playing .disc{animation-play-state:running}
 .arm .grab-head{pointer-events:all;cursor:grab;touch-action:none}
 body.connector .arm .grab,body.connector .arm .grab-head{pointer-events:none}
 body.arm-drag .arm{transition:transform .06s linear}
+body.arm-track .arm{transition:transform .3s linear}
 body.arm-drag .arm-wrap{filter:drop-shadow(calc(var(--S)*.03) calc(var(--S)*.05) calc(var(--S)*.03) rgba(0,0,0,.45))}
 body.arm-drag,body.arm-drag .arm .grab,body.arm-drag .arm .grab-head{cursor:grabbing}
 .needle-tip{position:absolute;z-index:4;pointer-events:none;transform:translate(-50%,-160%);padding:.35em .65em;border-radius:8px;font-size:.78rem;font-weight:600;
@@ -572,10 +573,22 @@ function currentProgress() {
 }
 
 /* ================= render loop ================= */
-/* tonearm geometry: angle 0 = resting on the post; the needle meets the outer groove at ARM_IN
-   and the run-out groove at ARM_OUT; below ARM_ON it is off the record */
-const ARM_REST = 0, ARM_ON = 10, ARM_IN = 14, ARM_OUT = 31;
-let lastArm = '';
+/* tonearm geometry (in units of the record size S): pivot at (1.12, .08), needle .62 from the pivot and
+   5.2° ahead of the tube; the record is centred at (.5, .5). Like a real record, the needle starts at the
+   outer groove (R_OUT) and travels steadily inward to the run-out groove next to the label (R_IN). */
+const ARM_REST = 0, R_EDGE = .48, R_OUT = .465, R_IN = .21, ARM_PHI = 5.2, ARM_LEN = .62;
+function tipRadius(th) {
+  const a = (th + ARM_PHI) * Math.PI / 180;
+  return Math.hypot(1.12 - Math.sin(a) * ARM_LEN - .5, .08 + Math.cos(a) * ARM_LEN - .5);
+}
+function angleForRadius(r) {                       // tip radius shrinks as the arm swings in, so bisect
+  let lo = 0, hi = 45;
+  for (let i = 0; i < 28; i++) { const m = (lo + hi) / 2; if (tipRadius(m) > r) lo = m; else hi = m; }
+  return (lo + hi) / 2;
+}
+const ARM_ON = angleForRadius(R_EDGE);
+const armForProgress = f => angleForRadius(R_OUT - (R_OUT - R_IN) * clamp(f, 0, 1));
+let lastArm = '', armShown = 0, armEaseUntil = 0;
 const spin = { a: 0, v: 0, last: performance.now() };
 const discEl = $('#stage .disc');
 function frame() {
@@ -590,8 +603,12 @@ function frame() {
   spin.a = (spin.a + spin.v * dt) % 360;
   discEl.style.transform = `rotate(${spin.a.toFixed(2)}deg)`;
   if (!armDrag) {
-    const arm = st.playing && st.track ? (ARM_IN + (ARM_OUT - ARM_IN) * (dur ? p / dur : 0)).toFixed(1) + 'deg' : ARM_REST + 'deg';
-    if (arm !== lastArm) { lastArm = arm; setVar('--arm', arm); }
+    // the needle follows the groove continuously; big jumps (play, pause, seek, new song) ease instead
+    const target = st.playing && st.track ? armForProgress(dur ? p / dur : 0) : ARM_REST;
+    if (Math.abs(target - armShown) > .6 || lastArm === '') { armEaseUntil = now + 1500; document.body.classList.remove('arm-track'); }
+    else if (now > armEaseUntil) document.body.classList.add('arm-track');
+    const arm = target.toFixed(2) + 'deg';
+    if (arm !== lastArm) { lastArm = arm; armShown = target; setVar('--arm', arm); }
   }
   lyricsTick(p);
   if (st.mode === 'demo') demoTick(p);
@@ -907,7 +924,7 @@ function needlePos(theta) {
 }
 function armDropTime(theta) {
   const dur = st.track ? st.track.duration : 0;
-  return dur ? clamp((theta - ARM_IN) / (ARM_OUT - ARM_IN), 0, 1) * dur : 0;
+  return dur ? clamp((R_OUT - tipRadius(theta)) / (R_OUT - R_IN), 0, 1) * dur : 0;
 }
 function armMove(e) {
   const th = armAngleAt(e.clientX, e.clientY); armDrag.theta = th; armDrag.moved = true;
@@ -915,12 +932,12 @@ function armMove(e) {
   const tip = $('#needle-tip'), [nx, ny] = needlePos(th);
   tip.style.left = nx + 'px'; tip.style.top = ny + 'px'; tip.style.position = 'fixed';
   const on = th >= ARM_ON && st.track;
-  tip.textContent = on ? (th < ARM_IN ? 'Start' : fmt(armDropTime(th))) : (st.playing ? 'Lift to pause' : 'Off');
+  tip.textContent = on ? (tipRadius(th) > R_OUT ? 'Start' : fmt(armDropTime(th))) : (st.playing ? 'Lift to pause' : 'Off');
   tip.classList.add('show');
 }
 function armUp() {
   if (!armDrag) return;
-  const th = armDrag.theta, moved = armDrag.moved; armDrag = null;
+  const th = armDrag.theta, moved = armDrag.moved; armDrag = null; armShown = th;
   setFlag('arm-drag', false); $('#needle-tip').classList.remove('show');
   if (!moved) { lastArm = ''; return; }
   if (th < ARM_ON || !st.track) {                  // parked off the record → pause
